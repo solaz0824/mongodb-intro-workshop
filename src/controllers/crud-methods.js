@@ -1,7 +1,7 @@
 const db = require("../models");
-// const { logger } = require("../config/config");
-// const connect = require("../db/connect");
-// const { seedUsers } = require("../db/seed");
+const { logger } = require("../config/config");
+const connect = require("../db/connect");
+const { seedUsers } = require("../db/seed");
 
 /**
  * Import the `init` helper function from the README
