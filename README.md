@@ -24,6 +24,10 @@ In this workshop you will learn how to build backend apps with Node.js, MongoDB 
 - [Mongoose Schema Hooks](#mongoose-schema-hooks)
 - [Safer Way of Storing Passwords](#safer-way-of-storing-passwords)
 - [Mongoose Schema Exercises](#mongoose-schema-exercises)
+- [CRUD Methods With Mongoose](#crud-methods-with-mongoose)
+- [CRUD Methods With Mongoose Exercises](#crud-methods-with-mongoose-exercises)
+- [Relations in Mongoose](#relations-in-mongoose)
+- [Mongoose Relations Exercises](#mongoose-relations-exercises)
 
 ## Getting Started
 
@@ -1720,6 +1724,926 @@ Open the files indicated bellow and read the instructions and requirements of th
 - **Test suite:** "2. create the 'User' model following the schema requirements"
 - **Test suite:** "3. encrypt the password before storing it in the database"
 - **Test suite:** "4. add a 'comparePassword' method to the 'User' schema"
+
+## CRUD Methods With Mongoose
+
+Mongoose provides several methods for querying, modifying and removing documents.
+
+- `Model.find()`
+- `Model.findById()`
+- `Model.findOne()`
+- `Model.findByIdAndDelete()`
+- `Model.findByIdAndRemove()`
+- `Model.findByIdAndUpdate()`
+- `Model.findOneAndDelete()`
+- `Model.findOneAndRemove()`
+- `Model.findOneAndReplace()`
+- `Model.findOneAndUpdate()`
+- `Model.replaceOne()`
+- `Model.updateMany()`
+- `Model.updateOne()`
+- `Model.deleteMany()`
+- `Model.deleteOne()`
+
+### Query Methods
+
+To find documents with mongoose we can use one of the query methods:
+
+- `Model.find()`
+- `Model.findById()`
+- `Model.findOne()`
+
+They can be used with regular MongoDB filters similar to the ones we have seen before.
+
+#### `Model.findOne()`
+
+```js
+const { logger } = require("../config/config");
+const db = require("../models");
+const connect = require("../db/connect");
+const { seedUsers } = require("../db/seed");
+
+async function queries() {
+  // connect to the db first
+  await connect();
+  // insert some users
+  await seedUsers();
+
+  const user = await db.User.findOne({ firstName: "Margaret" });
+
+  logger.debug(user);
+}
+
+queries();
+```
+
+The `findOne()` method returns a single document if it passes the filter or `null` if no results are found.
+
+```bash
+{
+  speaks: [ 'catalan', 'spanish' ],
+  _id: 5ff0385e93040fec99749cc9,
+  firstName: 'Margaret',
+  lastName: 'Watkins',
+  email: 'edde@kodbi.eh',
+  password: '$2b$12$N3MIKF8C/s7pfAW/X7MJpeHE/YR2Q6Rc6Rmj9CrM2sVt7NH1w2k9q',
+  createdAt: 2021-01-02T09:09:50.419Z,
+  updatedAt: 2021-01-02T09:09:50.419Z,
+  __v: 0
+}
+```
+
+#### `Model.findById()`
+
+The `.findById()` method accepts as a filter a string with the `_id` of a document.
+
+This method is the same as using `Model.findOne({ _id: "document_id" })`:
+
+```js
+const user_1 = await db.User.findOne({ _id: users[0]._id });
+const user_2 = await db.User.findById(users[0]._id);
+```
+
+```js
+const users = await db.User.find({});
+const user_1 = await db.User.findById(users[0]._id);
+
+logger.debug(users);
+logger.debug(user_1);
+```
+
+```bash
+[
+  {
+    speaks: [ 'english', 'spanish' ],
+    _id: 5ff039a465846ffa4bce9483,
+    firstName: 'Alta',
+    lastName: 'Harris',
+    email: 'cuk@boeli.gn',
+    password: '$2b$12$Ll0T6Ue.QXz5ukEwpTdNOe4hTwsIK.fTv/QeLUuNb0bqnOhvAAL02',
+    createdAt: 2021-01-02T09:15:16.989Z,
+    updatedAt: 2021-01-02T09:15:16.989Z,
+    __v: 0
+  },
+  ...
+]
+
+{
+  speaks: [ 'english', 'spanish' ],
+  _id: 5ff039a465846ffa4bce9483,
+  firstName: 'Alta',
+  lastName: 'Harris',
+  email: 'cuk@boeli.gn',
+  password: '$2b$12$Ll0T6Ue.QXz5ukEwpTdNOe4hTwsIK.fTv/QeLUuNb0bqnOhvAAL02',
+  createdAt: 2021-01-02T09:15:16.989Z,
+  updatedAt: 2021-01-02T09:15:16.989Z,
+  __v: 0
+}
+```
+
+#### Queries are Not Promises
+
+Mongoose queries are not promises. They have a `.then()` function for co and `async`/`await` as a convenience. However, unlike promises, calling a query's `.then()` can execute the query multiple times.
+
+In order to convert the queries to a Spec Compliant Promise we need to always execute the `.exec()` method in all query methods: `Model.find()`, `Model.findById()`, `Model.findOne()`
+
+```js
+const users = await db.User.find({}).exec();
+```
+
+#### Lean Documents
+
+Mongoose queries return Mongoose documents which have several helper methods. This means that if we just need the JSON information of the document we should execute the `.lean()` method to convert the document to an object.
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" }).exec();
+
+logger.debug(user); // the user info
+logger.debug(user.comparePassword);
+logger.debug(user.save);
+```
+
+```bash
+{
+  speaks: [ 'catalan', 'spanish' ],
+  _id: 5ff03c698ad8311755d9ebe8,
+  firstName: 'Margaret',
+  lastName: 'Watkins',
+  email: 'edde@kodbi.eh',
+  password: '$2b$12$caJhrfqx2Ko9wUt5IGsrWeTgTZvRcqsXukylXxrSy2FxtAwnYKHBO',
+  createdAt: 2021-01-02T09:27:05.971Z,
+  updatedAt: 2021-01-02T09:27:05.971Z,
+  __v: 0
+}
+[Function: comparePassword]
+[Function (anonymous)]
+```
+
+If we execute the `.lean()` method before calling `.exec()` the methods will no longer be available because the document is now just JSON.
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" }).lean().exec();
+
+logger.debug(user); // the user info
+logger.debug(user.comparePassword);
+logger.debug(user.save);
+```
+
+```bash
+{
+  speaks: [ 'catalan', 'spanish' ],
+  _id: 5ff03c698ad8311755d9ebe8,
+  firstName: 'Margaret',
+  lastName: 'Watkins',
+  email: 'edde@kodbi.eh',
+  password: '$2b$12$caJhrfqx2Ko9wUt5IGsrWeTgTZvRcqsXukylXxrSy2FxtAwnYKHBO',
+  createdAt: 2021-01-02T09:27:05.971Z,
+  updatedAt: 2021-01-02T09:27:05.971Z,
+  __v: 0
+}
+undefined
+undefined
+```
+
+#### Projection
+
+We can also use projection with mongoose queries.
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" })
+  .select({
+    firstName: 1,
+    lastName: 1,
+  })
+  .lean()
+  .exec();
+
+logger.debug(user);
+```
+
+```bash
+{
+  _id: 5ff03d3749f2f81fc9e1e97f,
+  firstName: 'Margaret',
+  lastName: 'Watkins'
+}
+```
+
+Another way of using project is with the shorthand version:
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" })
+  .select("firstName lastName")
+  .lean()
+  .exec();
+```
+
+```bash
+{
+  _id: 5ff03d8475f9a422fd993d18,
+  firstName: 'Margaret',
+  lastName: 'Watkins'
+}
+```
+
+Shorthand version of excluding elements:
+
+```js
+const user = await db.User.findOne({ firstName: "Margaret" })
+  .select("-password -__v -speaks -createdAt -updatedAt")
+  .lean()
+  .exec();
+```
+
+```bash
+{
+  _id: 5ff03dcbbb7ede25f4eb437d,
+  firstName: 'Margaret',
+  lastName: 'Watkins',
+  email: 'edde@kodbi.eh'
+}
+```
+
+#### Sorting
+
+We can sort results using the `.sort()` method.
+
+```js
+const user = await db.User.find({})
+  .select("firstName")
+  .sort({ firstName: 1 })
+  .lean()
+  .exec();
+```
+
+```bash
+[
+  { _id: 5ff03e22ff55232989a60be6, firstName: 'Alta' },
+  { _id: 5ff03e22ff55232989a60be7, firstName: 'Darrell' },
+  { _id: 5ff03e22ff55232989a60be3, firstName: 'Jordan' },
+  { _id: 5ff03e22ff55232989a60be5, firstName: 'Mable' },
+  { _id: 5ff03e22ff55232989a60be4, firstName: 'Margaret' },
+  { _id: 5ff03e22ff55232989a60be8, firstName: 'Ryan' }
+]
+```
+
+#### Pagination
+
+In order to paginate results we can use the `.skip()` and `.limit()` methods
+
+##### `.limit()`
+
+```js
+const user = await db.User.find({})
+  .select("firstName")
+  .sort({ firstName: 1 })
+  .limit(2)
+  .lean()
+  .exec();
+```
+
+```bash
+[
+  { _id: 5ff03eae764c7e2f89acc440, firstName: 'Alta' },
+  { _id: 5ff03eae764c7e2f89acc441, firstName: 'Darrell' }
+]
+```
+
+##### `.skip()`
+
+```js
+const user = await db.User.find({})
+  .select("firstName")
+  .sort({ firstName: 1 })
+  .skip(2)
+  .limit(2)
+  .lean()
+  .exec();
+```
+
+```bash
+[
+  { _id: 5ff03ed67d03c831390b37dd, firstName: 'Jordan' },
+  { _id: 5ff03ed67d03c831390b37df, firstName: 'Mable' }
+]
+```
+
+### Updating Documents
+
+Mongoose provides several methods to update documents.
+
+- `Model.findByIdAndUpdate()`
+- `Model.findOneAndReplace()`
+- `Model.findOneAndUpdate()`
+- `Model.replaceOne()`
+- `Model.updateMany()`
+- `Model.updateOne()`
+
+#### `Model.findByIdAndUpdate()`
+
+With this method we can find a document by its `_id` and update some fields.
+
+```js
+const users = await db.User.find({});
+const user = await db.User.findByIdAndUpdate(users[0]._id, {
+  $set: { firstName: "MODIFIED" },
+});
+
+logger.debug(users[0]);
+logger.debug(user);
+```
+
+```bash
+[
+  {
+    speaks: [ 'german', 'english' ],
+    _id: 5ff041b56c91854f982cf3c5,
+    firstName: 'Mable',
+    lastName: 'Schneider',
+    email: 'ba@wuf.ws',
+    password: '$2b$12$LAp/TBEGIFiCezXdsX7lveDq6borLARKs3gBUvaPUor3n1hQe3NiW',
+    createdAt: 2021-01-02T09:49:41.807Z,
+    updatedAt: 2021-01-02T09:49:41.807Z,
+    __v: 0
+  }
+  ...
+]
+
+{
+  speaks: [ 'german', 'english' ],
+  _id: 5ff041b56c91854f982cf3c5,
+  firstName: 'Mable',
+  lastName: 'Schneider',
+  email: 'ba@wuf.ws',
+  password: '$2b$12$LAp/TBEGIFiCezXdsX7lveDq6borLARKs3gBUvaPUor3n1hQe3NiW',
+  createdAt: 2021-01-02T09:49:41.807Z,
+  updatedAt: 2021-01-02T09:49:41.807Z,
+  __v: 0
+}
+```
+
+However, if we look at the `firstName` field it is still not modified. This happens because the document has been modified in the database but the method doesn't return the updated document. To fix this we need to provide the following command:
+
+```js
+{ new: true }
+```
+
+```js
+const user = await db.User.findByIdAndUpdate(
+  users[0]._id,
+  {
+    $set: { firstName: "MODIFIED" },
+  },
+  {
+    new: true,
+    projection: {
+      firstName: 1,
+    },
+  },
+);
+```
+
+Now the `firstName` field reflects the updated value.
+
+```bash
+{ _id: 5ff04268d4f3745709f8764c, firstName: 'MODIFIED' }
+```
+
+#### `Model.findOneAndUpdate()`
+
+This method allows us to find a document and modify it. The difference between the `Model.findOneAndUpdate()` method and the `Model.updateOne()` one is that `findOneAndUpdate()` returns the modified document while `updateOne()` doesn't.
+
+```js
+const user = await db.User.findOneAndUpdate(
+  { firstName: "Margaret" },
+  {
+    $set: { firstName: "Someone Else" },
+  },
+  {
+    new: true,
+    projection: {
+      firstName: 1,
+    },
+  },
+);
+```
+
+```bash
+{ _id: 5ff043ec3393c86709c734e0, firstName: 'Someone Else' }
+```
+
+#### `Model.updateOne()`
+
+```js
+const user = await db.User.updateOne(
+  { firstName: "Margaret" },
+  {
+    $set: { firstName: "Someone Else" },
+  },
+);
+```
+
+```bash
+{ n: 1, nModified: 1, ok: 1 }
+```
+
+#### `Model.updateMany()`
+
+```js
+const user = await db.User.updateMany(
+  {
+    speaks: ["catalan", "spanish"],
+  },
+  [
+    {
+      $set: { isNative: true },
+    },
+  ],
+);
+
+const users = await db.User.find({ isNative: true }).select("isNative");
+```
+
+```bash
+{ n: 1, nModified: 1, ok: 1 }
+[ { _id: 5ff046c69a3c048516cce1c6, isNative: true } ]
+```
+
+#### `upsert: true`
+
+The `upsert` option allows us to create a document if it doesn't exist.
+
+When you specify the option `upsert: true`:
+
+- If document(s) match the query criteria, the method performs an update.
+- If no document matches the query criteria, the method inserts a single document.
+
+However, when using Mongoose validation in schemas it is important to keep in mind that the validation rules won't be triggered when using upsert. To validate the values entered you will need to use the `document.validate()` method.
+
+```js
+const user = await db.User.findOneAndUpdate(
+  {
+    firstName: "  Antonio  ",
+  },
+  {
+    $push: { speaks: "italian" },
+  },
+  {
+    upsert: true,
+    new: true,
+  },
+);
+
+logger.debug(user);
+
+try {
+  await user.validate();
+} catch (error) {
+  logger.error(error.errors.lastName.message);
+  logger.error(error.errors.email.message);
+  logger.error(error.errors.password.message);
+}
+```
+
+The document was created with just part of the required fields, therefore the `validate()` method will throw an error for each missing field.
+
+```bash
+{
+  speaks: [ 'italian' ],
+  _id: 5ff0a7462b5833e88f16becd,
+  firstName: 'Antonio',
+  __v: 0,
+  createdAt: 2021-01-02T17:03:02.234Z,
+  updatedAt: 2021-01-02T17:03:02.234Z
+}
+The last name is required
+The email is required
+The password is required
+```
+
+### Document Removal Methods
+
+Mongoose also offers several methods to remove documents.
+
+**You should use the `.findXAndDelete()` methods instead of the `.findXAndRemove()` methods because they are more performant**
+
+Again, the `.findX` methods return the document found, if any.
+
+- `Model.findByIdAndDelete()`
+- `Model.findByIdAndRemove()`
+- `Model.findOneAndDelete()`
+- `Model.findOneAndRemove()`
+- `Model.deleteMany()`
+- `Model.deleteOne()`
+
+#### `Model.findOneAndDelete()`
+
+```js
+const user = await db.User.findOneAndDelete({ firstName: "Ryan" });
+```
+
+```bash
+{
+  speaks: [ 'english', 'spanish' ],
+  _id: 5ff0a9b82b296a7af888e1c4,
+  firstName: 'Ryan',
+  lastName: 'McGuire',
+  email: 'beta@houboem.py',
+  password: '$2b$12$4tOKRRzJGxMTYLULAqh1e.Mo7NtEEyWSzew2mEXoaiYyw6Q7xb9zS',
+  createdAt: 2021-01-02T17:13:28.640Z,
+  updatedAt: 2021-01-02T17:13:28.640Z,
+  __v: 0
+}
+```
+
+#### `Model.deleteOne()`
+
+```js
+const user = await db.User.deleteOne({ firstName: "Ryan" });
+```
+
+```bash
+{ n: 1, ok: 1, deletedCount: 1 }
+```
+
+## CRUD Methods With Mongoose Exercises
+
+The test suites for these exercises can be executed with the following script: `npm run test:02:crud`.
+
+Open the files indicated bellow and read the instructions and requirements of the tests to solve them.
+
+- Once you are done the instructor will solve each step
+- If you get stuck you can find the answers in the `02-mongoose-crud-exercises-solution` branch
+- Try not to peek at the solutions and solve them with your pair programming partner
+- To finish this part you have 20 minutes
+
+### Complete the code of the CRUD methods in the `/src/controllers/crud-methods.js` file
+
+- **Test suite:** "mongoose crud methods"
+
+### Viewing the Results
+
+If you want to see the result of each function call remember that you will need to first connect to the database and then you will be able to perform operations against it.
+
+**To do so you will have to complete all the steps in the `/src/controllers/crud-methods.js` file:**
+
+1. connect to the DB using the `connect()` function
+2. seed the DB with users using the `seedUsers` function
+3. run the `/src/controllers/crud-methods.js` file with nodemon (for live reload)
+
+You can use the following code to see the results, besides relying on the tests.
+
+```js
+// /src/controllers/crud-methods.js
+const db = require("../models");
+const { logger } = require("../config/config");
+const connect = require("../db/connect");
+const { seedUsers } = require("../db/seed");
+
+async function init() {
+  await connect();
+  await seedUsers();
+
+  const solution1 = await findUserByLastName();
+  logger.debug(solution1);
+
+  const solution2 = await findUserByEmailAndProjectFields();
+  logger.debug(solution2);
+
+  const solution3 = await getUserEmails();
+  logger.debug(solution3);
+
+  const solution4 = await getFirst3FirstNames();
+  logger.debug(solution4);
+
+  const solution5 = await getUpdatedEmail();
+  logger.debug(solution5);
+
+  const solution6 = await getRemovedUser();
+  logger.debug(solution6);
+}
+
+// this executes the function when run with nodemon
+init();
+```
+
+## Relations in Mongoose
+
+With Mongoose it is very easy to create relations between Models. These can be `1-1`, `1-N`, `N-N`, etc, just like SQL.
+
+However, we can also integrate all the information in the same document.
+
+For example, if we want to store the comments that a user has made we could:
+
+1. **Use a nested document that holds all the comments**
+
+```json
+{
+  "_id": "ead0e93b-8dbf-5eac-b102-118a7a697e5a",
+  "firstName": "Jackson",
+  "lastName": " Kennedy",
+  "comments": [
+    {
+      "_id": "1c00d7fd-67c3-5e4f-aed1-46f5d290bb02",
+      "title": "Adipisicing deserunt ad eu do in dolore sint consequat.",
+      "body": "Excepteur velit enim ullamco adipisicing nisi proident. Laborum occaecat veniam dolor velit id Lorem incididunt."
+    },
+    {
+      "_id": "9d973e31-b3c1-5961-a7e0-9948423f9918",
+      "title": "Labore tempor officia ad labore est magna et eu aliqua aliquip sunt consequat elit.",
+      "body": "Sint occaecat aliqua exercitation velit elit exercitation aliqua qui duis qui deserunt. Enim ullamco id esse amet."
+    },
+    {
+      "_id": "76d7fa8e-545e-584f-a0e1-626e4e557b8b",
+      "title": "Ullamco sit veniam ex enim dolore minim eu Lorem veniam mollit minim magna eu fugiat.",
+      "body": "Eiusmod occaecat dolor eiusmod amet adipisicing duis occaecat deserunt est officia aliquip voluptate in."
+    },
+    {
+      "_id": "e93ebd6b-f864-5a48-a200-ae5ea62c6140",
+      "title": "Amet minim aliquip aute anim nisi eiusmod mollit dolore.",
+      "body": "Sit nulla et duis occaecat dolore nisi fugiat exercitation excepteur."
+    }
+  ]
+}
+```
+
+2. **Use a different collection that stores the comments and link the with an `_id` in the user document**
+
+```json
+{
+  "_id": "ead0e93b-8dbf-5eac-b102-118a7a697e5a",
+  "firstName": "Jackson",
+  "lastName": " Kennedy",
+  "comments": [
+    "1c00d7fd-67c3-5e4f-aed1-46f5d290bb02",
+    "9d973e31-b3c1-5961-a7e0-9948423f9918",
+    "76d7fa8e-545e-584f-a0e1-626e4e557b8b",
+    "e93ebd6b-f864-5a48-a200-ae5ea62c6140"
+  ]
+}
+```
+
+The drawbacks or benefits of each approach depend on the needs of your application.
+
+The fist thing to keep in mind is that the maximum size of a single document in MongDB is **16MB**. Therefore, if the user has many comments, it might exceed this size. On the other hand, if the size of the relation data will always be small and we always show it when we query for the document, it might be worth storing it in the document itself rather than in a separate collection.
+
+### Create a Books Model
+
+To showcase relations in Mongoose and MongoDB we will use a Books collection that has the following fields:
+
+```
+Books: {
+  title: String
+  author: User
+  genre: String
+  year: Number
+  pages: Number
+  stats: {
+    upVotes: Number
+    downVotes: Number
+  }
+}
+```
+
+We can create a BookSchema and Model in the `src/models/book-model.js` file.
+
+#### `1-1` Relation
+
+The main field of the model is the `author` one which shows how to create a `ref` to another collection:
+
+```js
+const BookSchema = new mongoose.Schema({
+  author: {
+    type: mongoose.SchemaTypes.ObjectId,
+    required: true,
+    ref: "user",
+  },
+});
+```
+
+In this case we are creating a `1-1` relation between the User as the `author` of the book.
+
+#### `1-Many` Relation
+
+If we wanted to create a `1-Many` relation on the User model as the author of many books we could do the following:
+
+```js
+const UserSchema = new mongoose.Schema({
+  books: [
+    {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: "book",
+    },
+  ],
+});
+```
+
+#### Showing the Created Documents
+
+Once we have created the Book Model and Schema we can insert some documents.
+
+```js
+// src/models/book-model.js
+const mongoose = require("mongoose");
+
+const BookSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  author: {
+    type: mongoose.SchemaTypes.ObjectId,
+    required: true,
+    ref: "user",
+  },
+  genre: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  year: {
+    type: Number,
+    required: true,
+  },
+  pages: {
+    type: Number,
+    required: true,
+  },
+  stats: {
+    type: Object,
+    default: {
+      upVotes: 0,
+      downVotes: 0,
+    },
+    upVotes: {
+      type: Number,
+    },
+    downVotes: {
+      type: Number,
+    },
+  },
+});
+
+const BookModel = new mongoose.model("book", BookSchema);
+
+module.exports = BookModel;
+```
+
+```js
+// src/controllers/book-controller.js
+const db = require("../models");
+const { seedBooks, seedUsers } = require("../db/seed");
+const connect = require("../db/connect");
+const { logger } = require("../config/config");
+
+async function books() {
+  // first connect to the DB
+  await connect();
+  // then insert some users
+  await seedUsers();
+  // then insert some books
+  // first insert the users because the books will query for a user id
+  await seedBooks();
+
+  const books = await db.Book.find({}).limit(2);
+
+  logger.debug(books);
+}
+
+books();
+```
+
+If we look at the documents that were created we can see that they have all the fields. However the author data only has the `_id` because we need to `populate` fields that have relations to other collections if we want to see the entire document or a subset of it.
+
+```bash
+[
+  {
+    stats: { upVotes: 0, downVotes: 0 },
+    _id: 5ff18f38310517ed96dd921c,
+    title: 'Incubus Sky',
+    author: 5ff18f38310517ed96dd9216,
+    genre: 'Fantasy',
+    year: 2010,
+    pages: 220,
+    __v: 0
+  },
+  {
+    stats: { upVotes: 0, downVotes: 0 },
+    _id: 5ff18f38310517ed96dd921d,
+    title: 'The Twilight Wanderer',
+    author: 5ff18f38310517ed96dd9219,
+    genre: 'Fantasy',
+    year: 2012,
+    pages: 300,
+    __v: 0
+  }
+]
+```
+
+#### Populating Referenced Collections
+
+To populate the author document we can use the `.populate()` method when executing a query.
+
+```js
+const books = await db.Book.findOne({ title: "The Twilight Wanderer" })
+  .limit(2)
+  .populate("author");
+```
+
+This will return all the fields of the document we populate.
+
+```bash
+{
+  stats: { upVotes: 0, downVotes: 0 },
+  _id: 5ff18f91dc20eef1669425cc,
+  title: 'The Twilight Wanderer',
+  author: {
+    speaks: [ 'english', 'spanish' ],
+    _id: 5ff18f90dc20eef1669425c8,
+    firstName: 'Alta',
+    lastName: 'Harris',
+    email: 'cuk@boeli.gn',
+    password: '$2b$12$fxB4pdPvUGcdZJABrslGze1mflXMWapiIQLM2BRLj2XO4nqOD5sRu',
+    createdAt: 2021-01-03T09:34:08.698Z,
+    updatedAt: 2021-01-03T09:34:08.698Z,
+    __v: 0
+  },
+  genre: 'Fantasy',
+  year: 2012,
+  pages: 300,
+  __v: 0
+}
+```
+
+If we want to use projection we can do it this way:
+
+```js
+const books = await db.Book.findOne({ title: "The Twilight Wanderer" })
+  .limit(2)
+  .populate({
+    path: "author",
+    select: {
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+    },
+  });
+```
+
+Result:
+
+```bash
+{
+  stats: { upVotes: 0, downVotes: 0 },
+  _id: 5ff18fe94970d2f517b89b5e,
+  title: 'The Twilight Wanderer',
+  author: {
+    _id: 5ff18fe94970d2f517b89b5a,
+    firstName: 'Alta',
+    lastName: 'Harris',
+    email: 'cuk@boeli.gn'
+  },
+  genre: 'Fantasy',
+  year: 2012,
+  pages: 300,
+  __v: 0
+}
+```
+
+If we wanted to populate a nested path inside a referenced collection we could use further `path` fields:
+
+```js
+const recipe = await db.Recipe.findById(recipeID)
+  .populate("author", "_id name lastname")
+  .populate({
+    path: "comments",
+    select: "-__v -id -createdAt -updatedAt",
+    options: { sort: { createdAt: -1 } },
+    populate: {
+      path: "author",
+      select: "_id name lastname",
+    },
+  })
+  .select("-__v")
+  .lean()
+  .exec();
+```
+
+## Mongoose Relations Exercises
+
+The test suites for these exercises can be executed with the following script: `npm run test:03:relations`.
+
+Open the files indicated bellow and read the instructions and requirements of the tests to solve them.
+
+- Once you are done the instructor will solve each step
+- If you get stuck you can find the answers in the `03-mongoose-relations-exercises-solution` branch
+- Try not to peek at the solutions and solve them with your pair programming partner
+- To finish this part you have 20 minutes
+
+### 1. Create the `Song` schema in the `/src/models/song-model.js` file
+
+- **Test suite:** "mongoose relations"
 
 ## Author <!-- omit in toc -->
 

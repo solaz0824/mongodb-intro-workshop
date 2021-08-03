@@ -13,7 +13,9 @@
     "dev:workshop": "nodemon src/00-workshop-demo-files/index.js",
     "dev": "nodemon src/index.js",
     "test": "jest --watch",
-    "test:01:schemas": "jest -t 'mongoose schemas' --watch"
+    "test:01:schemas": "jest -t 'mongoose schemas' --watch",
+    "test:02:crud": "jest -t 'mongoose crud methods' --watch",
+    "test:03:relations": "jest -t 'mongoose relations' --watch"
   },
   "repository": {
     "type": "git",
